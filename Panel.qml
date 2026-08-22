@@ -76,6 +76,28 @@ Panel {
   property int editingEventIndex: -1
   readonly property var selectedEvents: eventsForDate(selectedDateKey)
   readonly property string eventsPath: Quickshell.env("HOME") + "/.local/state/omarchy/calendar/events.json"
+  readonly property int maxEventsFileBytes: 65536
+  readonly property int maxEventCount: 64
+  readonly property int maxTitleLength: 128
+  readonly property int maxNotesLength: 512
+
+  function boundedText(value, limit) {
+    return String(value || "").slice(0, limit)
+  }
+
+  function normalizedEvent(value) {
+    if (!value || typeof value !== "object") return null
+    var date = root.boundedText(value.date, 10)
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null
+    return {
+      id: root.boundedText(value.id, 64),
+      date: date,
+      time: root.boundedText(value.time, 8),
+      title: root.boundedText(value.title, root.maxTitleLength),
+      notes: root.boundedText(value.notes, root.maxNotesLength),
+      notified: value.notified === true
+    }
+  }
 
   function eventsForDate(key) {
     var result = []
@@ -87,9 +109,23 @@ Panel {
   function hasEvents(key) { return eventsForDate(key).length > 0 }
 
   function loadEvents(raw) {
+    raw = String(raw || "")
+    if (raw.length > root.maxEventsFileBytes) {
+      console.warn("local calendar: events file exceeds size limit")
+      events = []
+      return
+    }
     try {
-      var parsed = JSON.parse(String(raw || "[]"))
-      events = Array.isArray(parsed) ? parsed : []
+      var parsed = JSON.parse(raw || "[]")
+      var next = []
+      if (Array.isArray(parsed)) {
+        var limit = Math.min(parsed.length, root.maxEventCount)
+        for (var i = 0; i < limit; i++) {
+          var item = root.normalizedEvent(parsed[i])
+          if (item && item.title.length > 0) next.push(item)
+        }
+      }
+      events = next
     } catch (e) {
       console.warn("local calendar: invalid events file", e)
       events = []
@@ -127,10 +163,11 @@ Panel {
   }
 
   function saveEvent() {
-    var title = String(eventTitle.text || "").trim()
+    var title = root.boundedText(eventTitle.text, root.maxTitleLength).trim()
     if (!title) return
     var next = events.slice()
-    var item = { id: editingEventIndex >= 0 ? next[editingEventIndex].id : String(Date.now()), date: selectedDateKey, time: String(eventTime.text || "").trim(), title: title, notes: String(eventNotes.text || "").trim(), notified: false }
+    if (editingEventIndex < 0 && next.length >= root.maxEventCount) return
+    var item = { id: editingEventIndex >= 0 ? next[editingEventIndex].id : String(Date.now()), date: selectedDateKey, time: root.boundedText(eventTime.text, 8).trim(), title: title, notes: root.boundedText(eventNotes.text, root.maxNotesLength).trim(), notified: false }
     if (editingEventIndex >= 0) next[editingEventIndex] = item
     else next.push(item)
     events = next
@@ -168,18 +205,30 @@ Panel {
   FileView {
     id: eventsFile
     path: root.eventsPath
+    preload: false
+    blockAllReads: true
     watchChanges: true
     atomicWrites: true
     printErrors: false
-    onLoaded: root.loadEvents(text())
-    onLoadFailed: root.loadEvents("[]")
-    onFileChanged: reload()
+    onFileChanged: eventsLoader.running = true
+  }
+
+  Process {
+    id: eventsLoader
+    command: ["head", "-c", String(root.maxEventsFileBytes + 1), root.eventsPath]
+    stdout: StdioCollector {
+      id: eventsLoaderOutput
+      waitForEnd: true
+    }
+    onExited: function(exitCode) {
+      root.loadEvents(exitCode === 0 ? eventsLoaderOutput.text : "[]")
+    }
   }
 
   Process {
     id: calendarDir
     command: ["mkdir", "-p", Quickshell.env("HOME") + "/.local/state/omarchy/calendar"]
-    onExited: eventsFile.reload()
+    onExited: eventsLoader.running = true
   }
 
   Timer { interval: 30000; repeat: true; running: true; triggeredOnStart: true; onTriggered: root.checkReminders() }
@@ -895,8 +944,8 @@ Panel {
                     Text { width: Style.space(48); text: modelData.time || "All day"; color: Color.accent; font.family: root.contentFontFamily; font.pixelSize: Style.font.bodySmall; font.bold: true }
                     Column {
                       width: parent.width - Style.space(48) - deleteEventButton.width - parent.spacing * 2
-                      Text { width: parent.width; text: modelData.title; color: root.contentForeground; elide: Text.ElideRight; font.family: root.contentFontFamily; font.pixelSize: Style.font.body }
-                      Text { visible: Boolean(modelData.notes); width: parent.width; text: modelData.notes || ""; color: Qt.darker(root.contentForeground, 1.5); elide: Text.ElideRight; font.family: root.contentFontFamily; font.pixelSize: Style.font.caption }
+                      Text { width: parent.width; text: modelData.title; textFormat: Text.PlainText; color: root.contentForeground; elide: Text.ElideRight; font.family: root.contentFontFamily; font.pixelSize: Style.font.body }
+                      Text { visible: Boolean(modelData.notes); width: parent.width; text: modelData.notes || ""; textFormat: Text.PlainText; color: Qt.darker(root.contentForeground, 1.5); elide: Text.ElideRight; font.family: root.contentFontFamily; font.pixelSize: Style.font.caption }
                     }
                     Text {
                       id: deleteEventButton
