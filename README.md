@@ -24,6 +24,14 @@ omarchy plugin add https://github.com/elixirblend/omarchy-calendar-plus --enable
 omarchy plugin enable sofos.clock center
 ```
 
+## Remove
+
+```bash
+omarchy plugin remove sofos.clock
+```
+
+Removing the plugin leaves local agenda data in `~/.local/state/omarchy/calendar/events.json`. Delete that file separately only if you also want to remove your saved events.
+
 ## License
 
 MIT

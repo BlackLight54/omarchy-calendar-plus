@@ -15,6 +15,7 @@
     "displayName": "Calendar Plus",
     "description": "Enhanced date, calendar, agenda, and progress widget",
     "category": "Time",
+    "defaultSection": "center",
     "allowMultiple": false
   }
 }
