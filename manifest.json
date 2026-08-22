@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "sofos.clock",
+  "name": "Calendar Plus",
+  "version": "1.0.0",
+  "author": "Elixir Blend",
+  "description": "Enhanced clock and calendar with week numbers, agenda, year progress, and flexible formats",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Calendar Plus",
+    "description": "Enhanced date, calendar, agenda, and progress widget",
+    "category": "Time",
+    "allowMultiple": false
+  }
+}
