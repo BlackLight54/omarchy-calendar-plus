@@ -2,6 +2,8 @@
 
 An enhanced Omarchy clock and calendar widget with a useful popup agenda and time-progress views.
 
+![Calendar Plus monthly calendar, agenda, ISO week numbers, and year progress](assets/calendar-plus.png)
+
 ## Features
 
 - Configurable horizontal and vertical clock formats
