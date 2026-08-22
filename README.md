@@ -17,6 +17,8 @@ An enhanced Omarchy clock and calendar widget with a useful popup agenda and tim
 
 Calendar events remain local in `~/.local/state/omarchy/calendar/events.json` and are never included in the plugin repository.
 
+Calendar Plus uses the standard `python3` runtime included with Omarchy to read that state file with strict size, regular-file, no-follow, non-blocking, and timeout checks.
+
 ## Install
 
 ```bash

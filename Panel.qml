@@ -76,6 +76,7 @@ Panel {
   property int editingEventIndex: -1
   readonly property var selectedEvents: eventsForDate(selectedDateKey)
   readonly property string eventsPath: Quickshell.env("HOME") + "/.local/state/omarchy/calendar/events.json"
+  readonly property string safeEventsReaderPath: Qt.resolvedUrl("safe-events-reader.py").toString().replace(/^file:\/\//, "")
   readonly property int maxEventsFileBytes: 65536
   readonly property int maxEventCount: 64
   readonly property int maxTitleLength: 128
@@ -215,13 +216,23 @@ Panel {
 
   Process {
     id: eventsLoader
-    command: ["head", "-c", String(root.maxEventsFileBytes + 1), root.eventsPath]
+    command: ["python3", root.safeEventsReaderPath, root.eventsPath]
     stdout: StdioCollector {
       id: eventsLoaderOutput
       waitForEnd: true
     }
+    onStarted: eventsLoaderDeadline.restart()
     onExited: function(exitCode) {
+      eventsLoaderDeadline.stop()
       root.loadEvents(exitCode === 0 ? eventsLoaderOutput.text : "[]")
+    }
+  }
+
+  Timer {
+    id: eventsLoaderDeadline
+    interval: 1000
+    onTriggered: {
+      if (eventsLoader.running) eventsLoader.signal(9)
     }
   }
 
